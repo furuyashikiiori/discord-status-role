@@ -1,0 +1,3 @@
+# ローカル実行(npm run dev)用。.dev.vars にコピーして値を入れる（Gitには上げない）
+BOT_TOKEN=your-bot-token
+SHARED_SECRET=your-long-random-string

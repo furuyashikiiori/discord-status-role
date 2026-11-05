@@ -1,0 +1,8 @@
+name = "discord-status-role"
+main = "src/index.js"
+compatibility_date = "2026-11-01"
+
+# 公開しても困らない設定値はここに書く（トークン類は secret で設定すること）
+[vars]
+USER_ID = "あなたのユーザーID"
+ROLES = '{"sleep":"サーバーID:睡眠ロールID","away":"サーバーID:外出ロールID"}'
