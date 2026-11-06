@@ -17,18 +17,38 @@
 
 const ALIASES = { sleep: ["sleep", "on"], wake: ["sleep", "off"] };
 
+// 長さや内容で処理時間が変わらないよう、SHA-256 してから定数時間比較する
+async function safeEqual(a, b) {
+  const enc = new TextEncoder();
+  const [ha, hb] = await Promise.all([
+    crypto.subtle.digest("SHA-256", enc.encode(a)),
+    crypto.subtle.digest("SHA-256", enc.encode(b)),
+  ]);
+  return crypto.subtle.timingSafeEqual(ha, hb);
+}
+
 export default {
   async fetch(req, env) {
     if (req.method !== "POST") {
       return new Response("Method Not Allowed", { status: 405 });
     }
-    if (req.headers.get("Authorization") !== `Bearer ${env.SHARED_SECRET}`) {
+    if (!env.SHARED_SECRET || !env.BOT_TOKEN || !env.USER_ID) {
+      return new Response("Server is not configured", { status: 500 });
+    }
+    const auth = req.headers.get("Authorization") || "";
+    if (!(await safeEqual(auth, `Bearer ${env.SHARED_SECRET}`))) {
       return new Response("Unauthorized", { status: 401 });
     }
 
     const parts = new URL(req.url).pathname.split("/").filter(Boolean);
-    const [status, action] =
-      parts.length === 1 && ALIASES[parts[0]] ? ALIASES[parts[0]] : parts;
+    let status, action;
+    if (parts.length === 1 && Object.hasOwn(ALIASES, parts[0])) {
+      [status, action] = ALIASES[parts[0]];
+    } else if (parts.length === 2) {
+      [status, action] = parts;
+    } else {
+      return new Response("Not Found", { status: 404 });
+    }
 
     let roles;
     try {
@@ -36,7 +56,11 @@ export default {
     } catch {
       return new Response("ROLES is not valid JSON", { status: 500 });
     }
-    if (!roles[status] || (action !== "on" && action !== "off")) {
+    if (
+      !Object.hasOwn(roles, status) ||
+      typeof roles[status] !== "string" ||
+      (action !== "on" && action !== "off")
+    ) {
       return new Response("Not Found", { status: 404 });
     }
 

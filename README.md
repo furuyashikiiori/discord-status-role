@@ -83,6 +83,7 @@ Apple Watch は就寝スケジュールに合わせて睡眠集中モードに�
 
 | 返ってきたもの | 原因 |
 |---|---|
+| `500 Server is not configured` | `BOT_TOKEN` / `SHARED_SECRET` / `USER_ID` のどれかが未設定 |
 | `401` | `SHARED_SECRET` とヘッダの合言葉が不一致（`Bearer ` の後ろのスペース忘れも多い） |
 | `404` | パスの status 名が `ROLES` に無い / `on`・`off` のつづり違い |
 | `500 ROLES is not valid JSON` | `ROLES` の JSON が壊れている |
