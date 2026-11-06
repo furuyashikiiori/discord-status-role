@@ -14,6 +14,8 @@ Bot アカウントの公式 API だけを使うので規約上問題なし。�
 |---|---|
 | `POST /<status>/on`  | そのステータスのロールを付与 |
 | `POST /<status>/off` | そのステータスのロールを外す |
+| `POST /<status>/on?hours=3` | 付与して 3 時間後に自動で外す（小数可・最大 72） |
+| `POST /<status>/on?until=07:30` | 付与して次の 07:30 に自動で外す |
 | `POST /sleep` / `POST /wake` | `/sleep/on` / `/sleep/off` の別名 |
 
 すべて `Authorization: Bearer <SHARED_SECRET>` ヘッダが必要。
@@ -40,6 +42,19 @@ ROLES = '{"sleep":"サーバーID:睡眠ロールID","away":"サーバーID:外�
 ```
 
 複数サーバーなら `"sleep":"サーバーA:ロールA,サーバーB:ロールB"` のようにカンマ区切り。
+
+#### 自動オフ
+
+`AUTO_OFF` に書いたステータスは、`on` したあと指定の時刻（日本時間）に自動で外れる。
+`?hours=` / `?until=` を付けて `on` するとそちらが優先される。どのステータスにも付けられる。
+
+```toml
+AUTO_OFF = '{"busy":"05:00"}'   # 「今日は遊べない」は翌朝5時に自動で外す
+```
+
+予約は KV（`STATE`）に保存し、Cron（5分おき）で期限切れを外す。なので外れるのは最大 5 分ほど遅れる。
+手動で `off` するか、時刻指定なしで `on` し直すと予約は消える。
+KV は `npx wrangler kv namespace create STATE` で作り、出てきた id を `wrangler.toml` の `[[kv_namespaces]]` に書く。
 
 ### 3. デプロイ
 
@@ -75,6 +90,16 @@ curl -X POST -H "Authorization: Bearer $SECRET" $URL/sleep/off
 | 集中モード「睡眠」がオフになったとき | `…/sleep/off` |
 | 「出発」：自宅 | `…/away/on` |
 | 「到着」：自宅 | `…/away/off` |
+| 「到着」：バイト先 | `…/work/on` |
+| 「出発」：バイト先 | `…/work/off` |
+
+#### 手動で使うもの（今日は遊べない など）
+
+オートメーションではなく普通のショートカットとして作り、ホーム画面・ウィジェット・背面タップ・Siri から実行する。
+
+- 「今日は遊べない」: `…/busy/on`（`AUTO_OFF` で翌朝5時に自動解除）
+- 「◯時間 起こさないで」: 「入力を要求（数字）」→ URL を `…/busy/on?hours=〔入力した数字〕` にする
+- 「やっぱり遊べる」: `…/busy/off`
 
 Apple Watch は就寝スケジュールに合わせて睡眠集中モードに入るので、それがトリガーになる。
 位置情報トリガーは数分遅れることがある。設定 → プライバシー → 位置情報サービス → ショートカット を「常に」にすると安定しやすい。
@@ -85,6 +110,8 @@ Apple Watch は就寝スケジュールに合わせて睡眠集中モードに�
 |---|---|
 | `500 Server is not configured` | `BOT_TOKEN` / `SHARED_SECRET` / `USER_ID` のどれかが未設定 |
 | `401` | `SHARED_SECRET` とヘッダの合言葉が不一致（`Bearer ` の後ろのスペース忘れも多い） |
+| `400` | `hours` が 0 以下・72 超、または `until` が `HH:MM` 形式でない |
+| `500 Auto-off needs the STATE KV binding` | 自動オフを使おうとしたが KV がバインドされていない |
 | `404` | パスの status 名が `ROLES` に無い / `on`・`off` のつづり違い |
 | `500 ROLES is not valid JSON` | `ROLES` の JSON が壊れている |
 | `502` で中身に `"status":403` / `50013` | Bot に Manage Roles 権限が無い、または Bot のロールが対象ロールより下 |
